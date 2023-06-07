@@ -1,0 +1,19 @@
+[package]
+name = "fmx-agent"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "fmx-agent"
+path = "src/main.rs"
+
+[dependencies]
+tonic = "0.9"
+prost = "0.11"
+prost-types = "0.11"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+
+[build-dependencies]
+tonic-build = "0.9"

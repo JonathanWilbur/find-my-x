@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package findmydevice;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// The protocol intentionally does not relay any information about users. This
+// is intentional to minimize the amount of PII stored on servers. The
+// association of PII with users is outside of the scope of this protocol.
+
+// The API that transponders use to submit location and network information.
+service DeviceService {
+    rpc SubmitLocation (SubmitLocationArg) returns (SubmitLocationResult);
+    // rpc StreamServerEvents (StreamServerEventsArg) returns (stream ServerEvent);
+    rpc IntroduceMyself (IntroduceMyselfArg) returns (IntroduceMyselfResult);
+
+    // This operation basically just exists so low-power / IoT devices with no
+    // support for cryptographic operations can just request their deviceId from
+    // the server.
+    rpc GetMyId (GetMyIdArg) returns (GetMyIdResult);
+}
+
+// An API for automated interactions with the device.
+// For example, if your GPS data indicates that you are on your way home from
+// a late night at work, you can automate your smart lights to turn on by the
+// front door.
+service UserService {
+
+    // Access Control Operations
+    rpc CreateToken (CreateTokenArg) returns (CreateTokenResult);
+    rpc RevokeToken (RevokeTokenArg) returns (RevokeTokenResult);
+    rpc ListTokens (ListTokensArg) returns (ListTokensResult);
+
+    // Modification operations
+    rpc PurgeLocation (PurgeLocationArg) returns (PurgeLocationResult);
+    rpc Wipe (WipeArg) returns (WipeResult);
+    // This exists so that a user can block their device from transmitting more data, even remotely.
+    rpc RequestExcommunication (RequestExcommunicationArg) returns (RequestExcommunicationResult);
+
+    // Read-only operations
+    rpc ListLocations (ListLocationsArg) returns (ListLocationsResult);
+    rpc StreamLocation (StreamLocationArg) returns (stream LocationSnapshot);
+    rpc GetServerInfo (google.protobuf.Empty) returns (ServerInfo);
+    rpc GetStorageInfo (GetStorageInfoArg) returns (GetStorageInfoResult);
+}
+
+// Types
+
+message Location {
+    float degreesLatitude = 1;
+    float degressLongitude = 2;
+    float metersElevation = 3;
+}
+
+message Velocity {
+    float metersPerSecondSpeed = 1;
+    float bearing = 2;
+}
+
+message LocationSnapshot {
+    reserved 1;
+    google.protobuf.Timestamp updateTime = 2; // If absent, defaults to the time the server receives the request.
+    google.protobuf.Timestamp expectedNextUpdateTime = 3;
+    Location location = 4;
+    Velocity velocity = 5;
+    bool emergency = 6;
+    string notes = 7;
+    repeated NearbyWifiNetwork nearbyWifiNetwork = 8;
+    repeated NearbyBluetoothDevice nearbyBluetoothDevices = 9;
+}
+
+enum TransportType {
+    GRPC = 0;
+    UDP = 1;
+}
+
+message TransportInfo {
+    TransportType transport = 1;
+    string hostname = 2;
+    uint32 port = 3;
+}
+
+message Jurisdiction {
+    uint32 countryCode3n = 1; // ISO 3166 3-digit country codes (e.g. 840 for the United States)
+    string stateOrProvinceName = 2;
+    string localityName = 3;
+}
+
+enum ServerEventType {
+    NOOP = 0;
+    EXCOMMUNICATED = 1;
+    WIPE = 2;
+    TELL_ME_WHAT_YOU_SEE = 3;
+    TOKEN_ISSUED = 4;
+}
+
+message ServerEvent {
+    google.protobuf.Timestamp serverTime = 1;
+    ServerEventType eventType = 2;
+}
+
+message NearbyWifiNetwork {
+    bytes ssid = 1;
+    bytes macAddress = 2;
+}
+
+message NearbyBluetoothDevice {
+    string name = 1;
+    bytes macAddress = 2;
+}
+
+message Permissions {
+    bool location = 1;
+    bool nearby = 2;
+    bool wipe = 3;
+    bool listTokens = 4;
+    bool stats = 5;
+}
+
+message TokenInfo {
+    bytes token = 1;
+    Permissions permissions = 2;
+    google.protobuf.Timestamp notBefore = 3;
+    google.protobuf.Timestamp notAfter = 4;
+}
+
+// Arguments and Results
+
+message SubmitLocationArg {
+    bytes secretKey = 1;
+    google.protobuf.Timestamp updateTime = 2; // If absent, defaults to the time the server receives the request.
+    google.protobuf.Timestamp expectedNextUpdateTime = 3;
+    Location location = 4;
+    Velocity velocity = 5;
+    bool emergency = 6;
+    string notes = 7;
+    repeated NearbyWifiNetwork nearbyWifiNetwork = 8;
+    repeated NearbyBluetoothDevice nearbyBluetoothDevices = 9;
+}
+
+message SubmitLocationResult {
+    bool recorded = 1;
+
+    // If true, the device MUST reset its secret key and stop transmitting until the user manually intervenes.
+    bool excommunicated = 2;
+
+    // If supported, the device MUST wipe itself.
+    bool remoteWipe = 3;
+}
+
+message PurgeLocationArg {
+    bytes token = 1;
+    google.protobuf.Timestamp since = 2; // If absent, purge all history for this device.
+
+    // If location data must be deleted immediately, this option can alert an
+    // administrator to intervene and purge all location data immediately
+    bool emergency = 3;
+}
+
+message PurgeLocationResult {
+    // This returns a timestamp indicating approximately when the location data
+    // will be purged. This is intentionally delayed so that thieves cannot
+    // immediately delete the location history on a stolen device.
+    google.protobuf.Timestamp willBePurged = 1;
+}
+
+message ListLocationsArg {
+    bytes token = 1;
+    uint32 limit = 2;
+    google.protobuf.Timestamp since = 3;
+    google.protobuf.Timestamp until = 4;
+}
+
+message ListLocationsResult {
+    repeated LocationSnapshot locations = 1;
+}
+
+message StreamLocationArg {
+    bytes token = 1;
+}
+
+message ServerInfo {
+    string displayName = 1;
+    TransportInfo transport = 2;
+    string infoURL = 3;
+    uint32 timezone = 4;
+    Jurisdiction jurisdiction = 5;
+    bool canarySinging = 6;
+    bool registrationRequired = 7;
+    bool paidService = 8;
+}
+
+message GetMyIdArg {
+    bytes secretKey = 1;
+}
+
+message GetMyIdResult {
+    bytes deviceId = 1;
+}
+
+message WipeArg {
+    bytes token = 1;
+}
+
+message WipeResult {
+    bool wiped = 1;
+}
+
+message GetStorageInfoArg {
+    bytes token = 1;
+}
+
+message GetStorageInfoResult {
+    uint32 locationsCount = 1;
+    google.protobuf.Timestamp since = 2;
+    uint64 bytesStorageConsumed = 3;
+    uint64 bytesStorageLimit = 4;
+    uint32 locationsLimit = 5;
+}
+
+message StreamServerEventsArg {
+    bytes secretKey = 1;
+}
+
+message RequestExcommunicationArg {
+    bytes token = 1;
+}
+
+message RequestExcommunicationResult {
+    bool goodRiddance = 1;
+}
+
+message CreateTokenArg {
+    bytes secretKey = 1;
+    Permissions permissions = 2;
+    google.protobuf.Timestamp notBefore = 3; // Defaults to now
+    google.protobuf.Timestamp notAfter = 4; // Default determined by the server.
+}
+
+message CreateTokenResult {
+    TokenInfo tokenInfo = 1;
+}
+
+message RevokeTokenArg {
+    bytes secretKey = 1;
+    bytes token = 2; // If absent, revoke all.
+}
+
+message RevokeTokenResult {
+    bool revoked = 1;
+}
+
+message ListTokensArg {
+    bytes secretKey = 1;
+    bytes token = 2; // An alternative to using the secret key.
+}
+
+message ListTokensResult {
+    repeated TokenInfo tokens = 1;
+}
+
+message IntroduceMyselfArg {
+    bytes secretKey = 1;
+    bool remoteWipeEnabled = 2;
+    bool canReadNearbyDevices = 3;
+}
+
+message IntroduceMyselfResult {
+    bool niceToMeetYou = 1;
+}
+
+message ListNetworksArg {
+    bytes token = 1;
+}

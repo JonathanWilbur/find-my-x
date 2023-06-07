@@ -1,0 +1,18 @@
+[package]
+name = "fmx-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "fmx-server"
+path = "src/main.rs"
+
+[dependencies]
+tonic = "0.9"
+prost = "0.11"
+prost-types = "0.11"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+anyhow = "1.0.71"
+
+[build-dependencies]
+tonic-build = "0.9"

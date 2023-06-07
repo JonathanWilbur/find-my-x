@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package findmydevice;
+
+// The protocol intentionally does not relay any information about users. This
+// is intentional to minimize the amount of PII stored on servers. The
+// association of PII with users is outside of the scope of this protocol.
+
+service DeviceService {
+    rpc SubmitLocation (SubmitLocationArg) returns SubmitLocationResult;
+    rpc StreamServerEvents (StreamServerEventsArg) returns (stream ServerEvent);
+    rpc SubmitNetwork (SubmitNetworkArg) returns SubmitNetworkResult;
+
+    // This operation basically just exists so low-power / IoT devices with no
+    // support for cryptographic operations can just request their deviceId from
+    // the server.
+    rpc GetMyId (GetMyIdArg) returns GetMyIdResult;
+}
+
+service UserService {
+    // Modification operations
+    rpc PurgeLocation (PurgeLocationArg) returns PurgeLocationResult;
+    rpc Wipe (WipeArg) returns WipeResult;
+    // This exists so that a user can block their device from transmitting more data, even remotely.
+    rpc RequestExcommunication (RequestExcommunicationArg) returns RequestExcommunicationResult;
+
+    // Access Control Operations
+    // rpc GrantAccess (GrantAccessArg) returns GrantAccessResult;
+    // rpc RevokeAccess (RevokeAccessArg) returns RevokeAccessResult;
+    // RequestAccess: too many pitfalls. Not going to support it.
+    // TODO: ListGrants
+
+    // Read-only operations
+    rpc ListLocations (ListLocationsArg) returns ListLocationsResult;
+    rpc StreamLocation (StreamLocationArg) returns (stream LocationSnapshot);
+    rpc GetServerInfo () returns ServerInfo;
+    rpc GetStorageInfo (GetStorageInfoArg) returns GetStorageInfoResult;
+}
+
+// Types
+
+message Location {
+    float degreesLatitude = 1;
+    float degressLongitude = 2;
+    float metersElevation = 3;
+}
+
+message Velocity {
+    float metersPerSecondSpeed = 1;
+    float bearing = 2;
+}
+
+message LocationSnapshot {
+    Timestamp updateTime = 2; // If absent, defaults to the time the server receives the request.
+    Timestamp expectedNextUpdateTime = 3;
+    optional Location location = 4;
+    optional Velocity velocity = 5;
+    bool emergency = 6;
+    string notes = 7;
+}
+
+enum TransportType {
+    GRPC = 0;
+    UDP = 1;
+}
+
+message TransportInfo {
+    Transport transport = 1;
+    string hostname = 2;
+    uint32 port = 3;
+}
+
+message Jurisdiction {
+    uint32 countryCode3n = 1; // ISO 3166 3-digit country codes (e.g. 840 for the United States)
+    string stateOrProvinceName = 2;
+    string localityName = 3;
+}
+
+enum ServerEventType {
+    NOOP = 0;
+    EXCOMMUNICATED = 1;
+    WIPE = 2;
+    TELL_ME_WHAT_YOU_SEE = 3;
+}
+
+message ServerEvent {
+    Timestamp serverTime = 1;
+    ServerEventType eventType = 2;
+}
+
+message NearbyWifiNetwork {
+    bytes ssid = 1;
+    bytes macAddress = 2;
+}
+
+message NearbyBluetoothDevice {
+    string name = 1;
+    bytes macAddress = 2;
+}
+
+// Arguments and Results
+
+message SubmitLocationArg {
+    bytes secretKey = 1;
+    Timestamp updateTime = 2; // If absent, defaults to the time the server receives the request.
+    Timestamp expectedNextUpdateTime = 3;
+    optional Location location = 4;
+    optional Velocity velocity = 5;
+    bool emergency = 6;
+    string notes = 7;
+}
+
+message SubmitLocationResult {
+    bool recorded = 1;
+
+    // If true, the device MUST reset its secret key and stop transmitting until the user manually intervenes.
+    bool excommunicated = 2;
+
+    // If supported, the device MUST wipe itself.
+    bool remoteWipe = 3;
+}
+
+message PurgeLocationArg {
+    bytes secretKey = 1;
+    Timestamp since = 2; // If absent, purge all history for this device.
+
+    // If location data must be deleted immediately, this option can alert an
+    // administrator to intervene and purge all location data immediately
+    bool emergency = 3;
+}
+
+message PurgeLocationResult {
+    // This returns a timestamp indicating approximately when the location data
+    // will be purged. This is intentionally delayed so that thieves cannot
+    // immediately delete the location history on a stolen device.
+    Timestamp willBePurged = 1;
+}
+
+message GrantAccessArg {
+    bytes secretKey = 1;
+    bytes authorizedDeviceId = 2;
+    Timestamp until = 3;
+}
+
+message GrantAccessResult {
+    bool granted = 1;
+}
+
+message RevokeAccessArg {
+    bytes secretKey = 1;
+    bytes authorizedDeviceId = 2;
+}
+
+message RevokeAccessResult {
+    bool revoked = 1;
+}
+
+message ListLocationsArg {
+    bytes secretKey = 1;
+    bytes deviceId = 2; // If empty, it defaults to the owner of the secret key.
+    uint32 limit = 3;
+    Timestamp since = 4;
+    Timestamp until = 5;
+}
+
+message ListLocationsResult {
+    repeated locations LocationSnapshot = 1;
+}
+
+message ServerInfo {
+    string displayName = 1;
+    TransportInfo transport = 2;
+    string infoURL = 3;
+    uint32 timezone = 4;
+    Jurisdiction jurisdiction = 5;
+    bool canarySinging = 6;
+    bool registrationRequired = 7;
+    bool paidService = 8;
+}
+
+message GetMyIdArg {
+    bytes secretKey = 1;
+}
+
+message GetMyIdResult {
+    bytes deviceId = 1;
+}
+
+message WipeArg {
+    bytes secretKey = 1;
+    bytes spark = 2; // A second key, obtained via unspecified means, that authorizes the remote wipe.
+}
+
+message WipeResult {
+    bool wiped = 1;
+}
+
+message GetStorageInfoArg {
+    bytes secretKey = 1;
+}
+
+message GetStorageInfoResult {
+    uint32 locationsCount = 1;
+    Timestamp since = 2;
+    uint64 bytesStorageConsumed = 3;
+    uint64 bytesStorageLimit = 4;
+    uint32 locationsLimit = 5;
+}
+
+message StreamServerEventsArg {
+    bytes secretKey = 1;
+}
+
+message RequestExcommunicationArg {
+    bytes secretKey = 1;
+    bytes heresy = 2; // A second key, obtained via unspecified means, that authorizes the excommunication.
+}
+
+message RequestExcommunicationResult {
+    bool goodRiddance = 1;
+}
+
+message SubmitNetworkArg {
+    repeated NearbyWifiNetwork nearbyWifiNetwork = 1;
+    repeated NearbyBluetoothDevice nearbyBluetoothDevices = 2;
+}
+
+message SubmitNetworkResult {
+    bool noted = 1;
+}
