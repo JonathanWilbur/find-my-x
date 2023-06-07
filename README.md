@@ -54,6 +54,17 @@ developed for automation purposes.
 Note that the user service does not have to be used by a real human: it may be
 used for automation.
 
+There is no persistent storage, currently: all data is only held in memory, but
+before 1.0.0, there will be support for a low-latency key-value store, such as
+RocksDB or a Rust-based alternative like ReDB.
+
+## Vision
+
+In the short run, I would like this to be scalable enough for an extended
+family to have all of their devices providing updates, but in the long run, I
+would like this to become scalable enough that there are a few gigantic servers
+on the Internet that people use and trust.
+
 ## Development
 
 On a Debian distro, run:
