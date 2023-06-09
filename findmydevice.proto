@@ -14,11 +14,6 @@ service DeviceService {
     rpc SubmitLocation (SubmitLocationArg) returns (SubmitLocationResult);
     // rpc StreamServerEvents (StreamServerEventsArg) returns (stream ServerEvent);
     rpc IntroduceMyself (IntroduceMyselfArg) returns (IntroduceMyselfResult);
-
-    // This operation basically just exists so low-power / IoT devices with no
-    // support for cryptographic operations can just request their deviceId from
-    // the server.
-    rpc GetMyId (GetMyIdArg) returns (GetMyIdResult);
 }
 
 // An API for automated interactions with the device.
@@ -43,6 +38,8 @@ service UserService {
     rpc StreamLocation (StreamLocationArg) returns (stream LocationSnapshot);
     rpc GetServerInfo (google.protobuf.Empty) returns (ServerInfo);
     rpc GetStorageInfo (GetStorageInfoArg) returns (GetStorageInfoResult);
+
+    // TODO: API for admin to create registration tokens
 }
 
 // Types
@@ -128,7 +125,7 @@ message TokenInfo {
 // Arguments and Results
 
 message SubmitLocationArg {
-    bytes secretKey = 1;
+    bytes token = 1;
     google.protobuf.Timestamp updateTime = 2; // If absent, defaults to the time the server receives the request.
     google.protobuf.Timestamp expectedNextUpdateTime = 3;
     Location location = 4;
@@ -191,14 +188,6 @@ message ServerInfo {
     bool paidService = 8;
 }
 
-message GetMyIdArg {
-    bytes secretKey = 1;
-}
-
-message GetMyIdResult {
-    bytes deviceId = 1;
-}
-
 message WipeArg {
     bytes token = 1;
 }
@@ -220,7 +209,7 @@ message GetStorageInfoResult {
 }
 
 message StreamServerEventsArg {
-    bytes secretKey = 1;
+    bytes token = 1;
 }
 
 message RequestExcommunicationArg {
@@ -261,13 +250,14 @@ message ListTokensResult {
 }
 
 message IntroduceMyselfArg {
-    bytes secretKey = 1;
+    bytes registrationKey = 1;
     bool remoteWipeEnabled = 2;
     bool canReadNearbyDevices = 3;
 }
 
 message IntroduceMyselfResult {
     bool niceToMeetYou = 1;
+    bytes yourToken = 2;
 }
 
 message ListNetworksArg {

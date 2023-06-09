@@ -1,26 +1,9 @@
-use tonic::{transport::Server, Request, Response, Status};
-
 use find_my_device::device_service_client::DeviceServiceClient;
-// use findmydevice::DeviceService::{DeviceService, DeviceServiceServer};
 use find_my_device::{
-    SubmitLocationArg,
-    SubmitLocationResult,
-    StreamServerEventsArg,
-    ServerEvent,
     IntroduceMyselfArg,
-    IntroduceMyselfResult,
-    GetMyIdArg,
-    GetMyIdResult,
+    SubmitLocationArg,
+    Location,
 };
-
-// rpc SubmitLocation (SubmitLocationArg) returns SubmitLocationResult;
-// rpc StreamServerEvents (StreamServerEventsArg) returns (stream ServerEvent);
-// rpc IntroduceMyself (IntroduceMyselfArg) returns IntroduceMyselfResult;
-
-// // This operation basically just exists so low-power / IoT devices with no
-// // support for cryptographic operations can just request their deviceId from
-// // the server.
-// rpc GetMyId (GetMyIdArg) returns GetMyIdResult;
 
 pub mod find_my_device {
     tonic::include_proto!("findmydevice");
@@ -30,14 +13,33 @@ pub mod find_my_device {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = DeviceServiceClient::connect("http://127.0.0.1:50051").await?;
 
-    let request = tonic::Request::new(SubmitLocationArg {
-        emergency: true,
-        ..Default::default()
-    });
+    let token: Vec<u8> = {
+        let request = tonic::Request::new(IntroduceMyselfArg {
+            ..Default::default()
+        });
+        let response = client.introduce_myself(request).await?;
+        let resp = response.into_inner();
+        if resp.nice_to_meet_you {
+            println!("Server said hello.");
+        }
+        resp.your_token
+    };
 
-    let response = client.submit_location(request).await?;
-
-    println!("RESPONSE={:?}", response);
+    {
+        let request = tonic::Request::new(SubmitLocationArg {
+            token,
+            emergency: true,
+            location: Some(Location{
+                degrees_latitude: 30.0832,
+                degress_longitude: -81.4028,
+                meters_elevation: 0.0,
+            }),
+            ..Default::default()
+        });
+    
+        let response = client.submit_location(request).await?;
+        println!("RESPONSE={:?}", response);
+    }
 
     Ok(())
 }
