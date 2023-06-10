@@ -12,15 +12,14 @@ use crate::storage::{
 use crate::grpc::find_my_device::{
     RevokeTokenArg,
     RequestExcommunicationArg,
-    ListLocationsArg,
     ListLocationsResult,
-    GetStorageInfoArg,
     GetStorageInfoResult,
     LocationSnapshot,
     Permissions,
 };
 use chrono::prelude::*;
 
+#[derive(Clone)]
 pub struct Introduction {
     pub remote_addr: Option<SocketAddr>,
     pub registration_key: Vec<u8>,
@@ -28,6 +27,7 @@ pub struct Introduction {
     pub can_read_nearby_devices: bool,
 }
 
+#[derive(Clone)]
 pub struct MemoryStorage {
     pub locations: HashMap<SecretKey, Vec<LocationInsertion>>,
     pub intros: HashMap<SecretKey, Introduction>,
@@ -79,7 +79,8 @@ impl Storage for MemoryStorage {
             secret_key: arg.secret_key.clone(),
             permissions: Permissions{
                 list_tokens: false,
-                location: true,
+                write_locations: true,
+                read_locations: true, // TODO: Set this to false after testing is done.
                 nearby: true,
                 stats: false,
                 wipe: false,
@@ -179,7 +180,7 @@ impl Storage for MemoryStorage {
 
     }
 
-    async fn get_storage_info (&self, secret_key: &SecretKey, arg: &GetStorageInfoArg) -> anyhow::Result<GetStorageInfoResult> {
+    async fn get_storage_info (&self, secret_key: &SecretKey) -> anyhow::Result<GetStorageInfoResult> {
         let empty = vec![];
         let locs = self.locations.get(secret_key).unwrap_or(&empty);
         let since = locs

@@ -3,13 +3,9 @@ use std::net::SocketAddr;
 
 use crate::grpc::find_my_device::{
     IntroduceMyselfArg,
-    TokenInfo,
     RevokeTokenArg,
-    ListTokensResult,
     RequestExcommunicationArg,
-    ListLocationsArg,
     ListLocationsResult,
-    GetStorageInfoArg,
     GetStorageInfoResult,
     NearbyWifiNetwork,
     NearbyBluetoothDevice,
@@ -78,5 +74,5 @@ pub trait Storage {
 
     async fn list_locations (&self, secret_key: &SecretKey, filter: &LocationsFilter) -> anyhow::Result<ListLocationsResult>;
 
-    async fn get_storage_info (&self, secret_key: &SecretKey, arg: &GetStorageInfoArg) -> anyhow::Result<GetStorageInfoResult>;
+    async fn get_storage_info (&self, secret_key: &SecretKey) -> anyhow::Result<GetStorageInfoResult>;
 }

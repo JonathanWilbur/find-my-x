@@ -25,6 +25,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         resp.your_token
     };
 
+    println!("http://localhost:3030/locations/{}", hex::encode(&token));
+
     {
         let request = tonic::Request::new(SubmitLocationArg {
             token,

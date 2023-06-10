@@ -108,11 +108,12 @@ message NearbyBluetoothDevice {
 }
 
 message Permissions {
-    bool location = 1;
-    bool nearby = 2;
-    bool wipe = 3;
-    bool listTokens = 4;
-    bool stats = 5;
+    bool writeLocations = 1;
+    bool readLocations = 2;
+    bool nearby = 3;
+    bool wipe = 4;
+    bool listTokens = 5;
+    bool stats = 6;
 }
 
 message TokenInfo {
