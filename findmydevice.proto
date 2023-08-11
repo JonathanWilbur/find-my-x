@@ -30,8 +30,6 @@ service UserService {
     // Modification operations
     rpc PurgeLocation (PurgeLocationArg) returns (PurgeLocationResult);
     rpc Wipe (WipeArg) returns (WipeResult);
-    // This exists so that a user can block their device from transmitting more data, even remotely.
-    rpc RequestExcommunication (RequestExcommunicationArg) returns (RequestExcommunicationResult);
 
     // Read-only operations
     rpc ListLocations (ListLocationsArg) returns (ListLocationsResult);
@@ -211,14 +209,6 @@ message GetStorageInfoResult {
 
 message StreamServerEventsArg {
     bytes token = 1;
-}
-
-message RequestExcommunicationArg {
-    bytes token = 1;
-}
-
-message RequestExcommunicationResult {
-    bool goodRiddance = 1;
 }
 
 message CreateTokenArg {

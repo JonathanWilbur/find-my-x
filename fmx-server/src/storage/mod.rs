@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use crate::grpc::find_my_device::{
     IntroduceMyselfArg,
     RevokeTokenArg,
-    RequestExcommunicationArg,
     ListLocationsResult,
     GetStorageInfoResult,
     NearbyWifiNetwork,
@@ -69,8 +68,6 @@ pub trait Storage {
     async fn list_tokens (&self, secret_key: &SecretKey) -> anyhow::Result<Vec<TokenEntry>>;
 
     async fn purge_location (&mut self, secret_key: &SecretKey) -> anyhow::Result<()>;
-
-    async fn excommunicate (&mut self, arg: &RequestExcommunicationArg) -> anyhow::Result<()>;
 
     async fn list_locations (&self, secret_key: &SecretKey, filter: &LocationsFilter) -> anyhow::Result<ListLocationsResult>;
 

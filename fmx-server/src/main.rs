@@ -12,6 +12,7 @@ use storage::{
     IntroInsertion,
     LocationsFilter,
     Token,
+    TokenEntry,
 };
 use config::Config;
 use storage::memory::MemoryStorage;
@@ -23,12 +24,13 @@ use grpc::find_my_device::{
     // ServerEvent,
     IntroduceMyselfArg,
     IntroduceMyselfResult,
+    Permissions,
 };
 use warp::Filter;
 use warp::http::StatusCode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use log::warn;
+use log::{warn, debug, error, trace};
 use chrono::prelude::*;
 use web::{LocationsPage, Props};
 use std::convert::Infallible;
@@ -52,11 +54,29 @@ impl <S: Storage + Send + Sync + 'static> DeviceService for DeviceServiceProvide
         let req = request.into_inner();
         let mut storage = self.storage.lock().await;
         let maybe_token_info = storage.get_token_info(&req.token).await
-            .map_err(|_| Status::internal("Database failure."))?;
-        if maybe_token_info.is_none() {
+            .map_err(|e| {
+                error!("Database failure: {:?}", e);
+                Status::internal("Database failure.")
+            })?;
+        let using_test_token = (req.token.len() > 0) && (req.token == self.config.testing_token);
+        if !using_test_token && maybe_token_info.is_none() {
+            debug!("Unauthenticated request from {:?}", maybe_remote_addr);
             return Err(Status::unauthenticated("Unauthenticated"));
         }
-        let token_info = maybe_token_info.unwrap();
+        let token_info = if using_test_token {
+            maybe_token_info.unwrap()
+        } else {
+            TokenEntry{
+                not_before: DateTime::<Utc>::MIN_UTC,
+                not_after: None,
+                secret_key: self.config.testing_token.clone(),
+                permissions: Permissions{
+                    write_locations: true,
+                    ..Default::default()
+                }
+            }
+        };
+
         if req.emergency {
             warn!("Emergency announced by {:?}", token_info.secret_key);
         }
@@ -72,14 +92,16 @@ impl <S: Storage + Send + Sync + 'static> DeviceService for DeviceServiceProvide
             nearby_wifi_network: req.nearby_wifi_network,
             remote_addr: maybe_remote_addr,
         };
-        match storage.write_location(&token_info.secret_key, &insertion).await {
+        let ret = match storage.write_location(&token_info.secret_key, &insertion).await {
             Ok(_) => Ok(Response::new(SubmitLocationResult {
                 recorded: true,
                 excommunicated: false,
                 remote_wipe: false,
             })),
-            Err(_) => Err(Status::internal("Database failure.")),
-        }
+            Err(_) => return Err(Status::internal("Database failure.")),
+        };
+        trace!("Inserted location submitted by {:?}", maybe_remote_addr);
+        ret
     }
 
     async fn introduce_myself (
@@ -174,6 +196,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         storage: storage.clone(),
         config: Arc::new(Config{
             open_registration: true,
+            testing_token: Vec::from([ 0x01, 0x02, 0x03, 0x04 ]),
         }),
     };
 

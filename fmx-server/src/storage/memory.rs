@@ -11,7 +11,6 @@ use crate::storage::{
 };
 use crate::grpc::find_my_device::{
     RevokeTokenArg,
-    RequestExcommunicationArg,
     ListLocationsResult,
     GetStorageInfoResult,
     LocationSnapshot,
@@ -133,11 +132,6 @@ impl Storage for MemoryStorage {
     async fn purge_location (&mut self, secret_key: &SecretKey) -> anyhow::Result<()> {
         self.locations.remove(secret_key);
         Ok(())
-    }
-
-    async fn excommunicate (&mut self, _: &RequestExcommunicationArg) -> anyhow::Result<()> {
-        // FIXME: Implement a token -> secret key lookup
-        todo!()
     }
 
     async fn list_locations (&self, secret_key: &SecretKey, filter: &LocationsFilter) -> anyhow::Result<ListLocationsResult> {
