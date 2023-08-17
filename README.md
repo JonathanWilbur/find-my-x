@@ -58,6 +58,12 @@ There is no persistent storage, currently: all data is only held in memory, but
 before 1.0.0, there will be support for a low-latency key-value store, such as
 RocksDB or a Rust-based alternative like ReDB.
 
+## Apps / Clients / Agents
+
+I am currently developing a
+[cross-platform Android and iOS app](https://github.com/JonathanWilbur/fmx-beacon)
+that can submit location data to the FMX server.
+
 ## Vision
 
 In the short run, I would like this to be scalable enough for an extended
